@@ -5,11 +5,7 @@ from datetime import date
 import io
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
-st.set_page_config(layout="wide", page_title="Lácteos María Zomac - Sistema de Gestión Integrado", page_icon="🥛")
-
-# --- URL DEL LOGO DE LA EMPRESA (SOLUCIÓN ALTERNATIVA FIABLE) ---
-# He subido el logo Suiza a un servidor alternativo para asegurar que cargue bien.
-LOGO_URL = "https://imgur.com/8Qp4w6i.png" # URL alternativa fiable para el logo Suiza
+st.set_page_config(layout="wide", page_title="Lácteos Suiza - Sistema de Gestión Integrado", page_icon="🥛")
 
 # --- ESTILOS CSS PERSONALIZADOS (MODO CLARO Y LEGIBLE DEFINITIVO) ---
 st.markdown("""
@@ -75,11 +71,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- TÍTULO PRINCIPAL ---
-st.title("🥛 Sistema de Gestión Integrado - Lácteos María Zomac")
+st.title("🥛 Sistema de Gestión Integrado - Lácteos Suiza")
 
 # --- CONEXIÓN A LA BASE DE DATOS (SQLITE) ---
 def get_db_connection():
-    conn = sqlite3.connect('lacteos_zomac.db', check_same_thread=False)
+    conn = sqlite3.connect('lacteos_suiza.db', check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -196,11 +192,9 @@ def check_password():
 if not check_password():
     st.stop()
 
-# --- BARRA LATERAL (SIDEBAR) - NAVEGACIÓN (CON LOGO SUIZA Y CONTRASTE MÁXIMO) ---
+# --- BARRA LATERAL (SIDEBAR) - NAVEGACIÓN (CON CONTRASTE MÁXIMO) ---
 with st.sidebar:
-    # INTEGRACIÓN DEL LOGO DE LÁCTEOS SUIZA
-    # Usando la URL alternativa fiable
-    st.image(LOGO_URL, use_column_width=True) 
+    # ELIMINADO EL LOGO POR PETICIÓN DEL SOCIO
     
     st.header("Navegación")
     app_mode = st.radio("Ir a:", 
@@ -217,7 +211,7 @@ with st.sidebar:
     
     st.markdown("---")
     # Botón de Excel desactivado temporalmente para asegurar que arranque
-    # st.download_button(label="📥 Descargar Respaldo (Excel)", data=download_backup(), file_name=f'respaldo_lacteos_zomac_{date.today()}.xlsx', mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    # st.download_button(label="📥 Descargar Respaldo (Excel)", data=download_backup(), file_name=f'respaldo_lacteos_suiza_{date.today()}.xlsx', mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     st.info("💡 Botón de Respaldo Excel desactivado temporalmente.")
 
 # --- CÓDIGO DE LOS MÓDULOS (Sin cambios) ---
