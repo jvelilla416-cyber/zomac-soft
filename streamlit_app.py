@@ -187,44 +187,57 @@ def check_password():
         if st.session_state["password"] == st.secrets["password"]:
             st.session_state["password_correct"] = True
             del st.session_state["password"]
+        elif st.session_state["password"] == st.secrets["limited_password"]:
+            st.session_state["password_correct"] = True
+            st.session_state["user_role"] = "limited"
+            del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
         st.markdown("## 🔒 Acceso al Sistema de Seguridad")
-        st.text_input("Ingrese la Contraseña de Seguridad Maestra:", type="password", on_change=password_entered, key="password")
+        st.text_input("Ingrese la Contraseña de Seguridad:", type="password", on_change=password_entered, key="password")
         return False
     elif not st.session_state["password_correct"]:
         st.markdown("## 🔒 Acceso al Sistema de Seguridad")
-        st.text_input("Ingrese la Contraseña de Seguridad Maestra:", type="password", on_change=password_entered, key="password")
+        st.text_input("Ingrese la Contraseña de Seguridad:", type="password", on_change=password_entered, key="password")
         st.error("😕 Contraseña incorrecta. Por favor, intente de nuevo.")
         return False
     else:
         return True
 
+# --- AUTENTICACIÓN ---
+if not check_password():
+    st.stop()
+
+# --- DEFINICIÓN DE MENÚS (ADMIN vs LIMITADO) ---
+if st.session_state.get("user_role") == "limited":
+    menu_options = ["📊 Director del Panel (Resumen)", 
+                    "🥛 Entrada de Leche Cruda", 
+                    "📦 Inventario de Productos Terminados",
+                    "🔄 Producción: Transformación",
+                    "🍽️ Producción: Tajado (Slicing)"]
+else:
+    menu_options = ["📊 Director del Panel (Resumen)", 
+                    "👥 Gestión de Proveedores",
+                    "🥛 Entrada de Leche Cruda", 
+                    "📦 Inventario de Productos Terminados",
+                    "🔄 Producción: Transformación",
+                    "🍽️ Producción: Tajado (Slicing)",
+                    "👥 Gestión de Clientes",
+                    "💰 Registro de Ventas",
+                    "📈 Reportes y Gráficos",
+                    "⚙️ Configuración"]
+
 # --- BARRA LATERAL (SIDEBAR) - NAVEGACIÓN (CON CONTRASTE MÁXIMO) ---
 with st.sidebar:
     st.header("Navegación")
-    app_mode = st.radio("Ir a:", 
-        ["📊 Director del Panel (Resumen)", 
-         "👥 Gestión de Proveedores",
-         "🥛 Entrada de Leche Cruda", 
-         "📦 Inventario de Productos Terminados",
-         "🔄 Producción: Transformación",
-         "🍽️ Producción: Tajado (Slicing)",
-         "👥 Gestión de Clientes",
-         "💰 Registro de Ventas",
-         "📈 Reportes y Gráficos",
-         "⚙️ Configuración"])
+    app_mode = st.radio("Ir a:", menu_options)
     
     st.markdown("---")
     # Botón de Excel desactivado temporalmente para asegurar que arranque
     # st.download_button(label="📥 Descargar Respaldo (Excel)", data=download_backup(), file_name=f'respaldo_lacteos_suiza_{date.today()}.xlsx', mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     st.info("💡 Botón de Respaldo Excel desactivado temporalmente.")
-
-# --- AUTENTICACIÓN ---
-if not check_password():
-    st.stop()
 
 # --- CÓDIGO DE LOS MÓDULOS ---
 
