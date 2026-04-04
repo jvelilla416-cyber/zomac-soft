@@ -7,53 +7,53 @@ import io
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(layout="wide", page_title="Lácteos María Zomac - Sistema de Gestión Integrado", page_icon="🥛")
 
-# --- ESTILOS CSS PERSONALIZADOS (MODO OSCURO) ---
+# --- ESTILOS CSS PERSONALIZADOS (MODO CLARO Y LEGIBLE) ---
 st.markdown("""
 <style>
-    /* Estilos generales para modo oscuro */
+    /* Estilos generales para modo CLARO (Legibilidad máxima) */
     .stApp {
-        background-color: #121212;
-        color: #e0e0e0;
+        background-color: #ffffff;
+        color: #000000;
     }
     /* Estilos para la barra lateral (Sidebar) */
     [data-testid="stSidebar"] {
-        background-color: #1e1e1e;
-        color: #e0e0e0;
+        background-color: #f0f2f6;
+        color: #000000;
     }
     /* Estilos para los títulos y subtítulos */
     h1, h2, h3, .stHeader {
-        color: #90caf9;
+        color: #004ba0;
     }
     /* Estilos para las tarjetas de métricas */
     .stMetric {
-        background-color: #262626;
+        background-color: #f7f9fc;
         padding: 15px;
         border-radius: 10px;
-        border: 1px solid #333;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+        border: 1px solid #dcdcdc;
+        box-shadow: 1px 1px 3px rgba(0,0,0,0.1);
     }
     .stMetric div[data-testid="stMetricValue"] > div {
-        color: #fff;
+        color: #000000;
     }
     .stMetric div[data-testid="stMetricLabel"] > div {
-        color: #b0bec5;
+        color: #5f6368;
     }
     /* Estilos para las tablas (DataFrames) */
     .stDataFrame {
-        background-color: #1e1e1e;
-        color: #e0e0e0;
-        border: 1px solid #333;
+        background-color: #ffffff;
+        color: #000000;
+        border: 1px solid #dcdcdc;
     }
     /* Estilos para los formularios y entradas de texto */
     .stTextInput>div>div>input, .stNumberInput>div>div>input, .stDateInput>div>div>input, .stSelectbox>div>div>select {
-        background-color: #333;
-        color: #fff;
-        border: 1px solid #555;
+        background-color: #ffffff;
+        color: #000000;
+        border: 1px solid #b0bec5;
     }
     /* Estilos para los botones */
     .stButton>button {
         background-color: #1976d2;
-        color: #fff;
+        color: #ffffff;
         border: none;
         font-weight: bold;
     }
@@ -257,6 +257,6 @@ if app_mode == "📊 Director del Panel (Resumen)":
 
 # MÓDULO 2: GESTIÓN DE PROVEEDORES
 elif app_mode == "👥 Gestión de Proveedores":
-    # ... (El resto del código es idéntico al anterior)
+    # ... (El resto del código es idéntico al anterior, pero ahora se verá bien)
     st.subheader("👥 Gestión de Proveedores de Leche Cruda")
     # ...
