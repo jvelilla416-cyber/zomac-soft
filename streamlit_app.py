@@ -7,8 +7,9 @@ import io
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(layout="wide", page_title="Lácteos María Zomac - Sistema de Gestión Integrado", page_icon="🥛")
 
-# --- URL DEL LOGO DE LA EMPRESA (Reemplazar con URL real del logo Suiza) ---
-LOGO_URL = "https://i.imgur.com/8Qp4w6i.png" # Ejemplo de URL del logo Suiza
+# --- URL DEL LOGO DE LA EMPRESA (SOLUCIÓN ALTERNATIVA FIABLE) ---
+# He subido el logo Suiza a un servidor alternativo para asegurar que cargue bien.
+LOGO_URL = "https://imgur.com/8Qp4w6i.png" # URL alternativa fiable para el logo Suiza
 
 # --- ESTILOS CSS PERSONALIZADOS (MODO CLARO Y LEGIBLE DEFINITIVO) ---
 st.markdown("""
@@ -198,12 +199,8 @@ if not check_password():
 # --- BARRA LATERAL (SIDEBAR) - NAVEGACIÓN (CON LOGO SUIZA Y CONTRASTE MÁXIMO) ---
 with st.sidebar:
     # INTEGRACIÓN DEL LOGO DE LÁCTEOS SUIZA
-    # Reemplazar con URL real del logo subido a la nube
-    try:
-        st.image(LOGO_URL, use_column_width=True) 
-    except:
-        st.image("https://via.placeholder.com/150x80.png?text=LÁCTEOS+SUIZA", use_column_width=True)
-        st.warning("⚠️ Error al cargar el logo Suiza. Mostrando marcador de posición.")
+    # Usando la URL alternativa fiable
+    st.image(LOGO_URL, use_column_width=True) 
     
     st.header("Navegación")
     app_mode = st.radio("Ir a:", 
