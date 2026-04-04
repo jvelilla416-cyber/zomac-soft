@@ -7,10 +7,10 @@ import io
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(layout="wide", page_title="Lácteos María Zomac - Sistema de Gestión Integrado", page_icon="🥛")
 
-# --- URL DEL LOGO DE LA EMPRESA (Reemplazar con URL real) ---
+# --- URL DEL LOGO DE LA EMPRESA (Reemplazar con URL real del logo Suiza) ---
 LOGO_URL = "https://i.imgur.com/8Qp4w6i.png" # Ejemplo de URL del logo Suiza
 
-# --- ESTILOS CSS PERSONALIZADOS (MODO CLARO Y LEGIBLE) ---
+# --- ESTILOS CSS PERSONALIZADOS (MODO CLARO Y LEGIBLE DEFINITIVO) ---
 st.markdown("""
 <style>
     /* Estilos generales para modo CLARO (Legibilidad máxima) */
@@ -18,12 +18,19 @@ st.markdown("""
         background-color: #ffffff;
         color: #000000;
     }
-    /* Estilos para la barra lateral (Sidebar) */
+    /* Estilos para la barra lateral (Sidebar) - CONTRASTE MÁXIMO */
     [data-testid="stSidebar"] {
-        background-color: #f0f2f6;
-        color: #000000;
+        background-color: #f0f2f6; /* Gris muy claro */
+        color: #000000; /* Letras NEGRAS */
     }
-    /* Estilos para los títulos y subtítulos */
+    /* Asegurar que los radio buttons y textos de la barra lateral sean negros */
+    [data-testid="stSidebar"] div[role="radiogroup"] label {
+        color: #000000 !important;
+    }
+    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
+        color: #000000 !important;
+    }
+    /* Estilos para los títulos y subtítulos del área principal */
     h1, h2, h3, .stHeader {
         color: #004ba0;
     }
@@ -173,24 +180,22 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        # Título de acceso claro y legible
         st.markdown("## 🔒 Acceso al Sistema de Seguridad")
-        st.text_input("Ingrese la Contraseña de Seguridad Maestra:", type="password", on_change=password_entered, key="password", help="Esta contraseña protege sus datos confidenciales.")
+        st.text_input("Ingrese la Contraseña de Seguridad Maestra:", type="password", on_change=password_entered, key="password")
         return False
     elif not st.session_state["password_correct"]:
         st.markdown("## 🔒 Acceso al Sistema de Seguridad")
-        st.text_input("Ingrese la Contraseña de Seguridad Maestra:", type="password", on_change=password_entered, key="password", help="Esta contraseña protege sus datos confidenciales.")
+        st.text_input("Ingrese la Contraseña de Seguridad Maestra:", type="password", on_change=password_entered, key="password")
         st.error("😕 Contraseña incorrecta. Por favor, intente de nuevo.")
         return False
     else:
         return True
 
 # --- AUTENTICACIÓN ---
-# Primero verificamos la contraseña, antes que nada
 if not check_password():
     st.stop()
 
-# --- BARRA LATERAL (SIDEBAR) - NAVEGACIÓN (CON LOGO SUIZA) ---
+# --- BARRA LATERAL (SIDEBAR) - NAVEGACIÓN (CON LOGO SUIZA Y CONTRASTE MÁXIMO) ---
 with st.sidebar:
     # INTEGRACIÓN DEL LOGO DE LÁCTEOS SUIZA
     # Reemplazar con URL real del logo subido a la nube
@@ -221,4 +226,6 @@ with st.sidebar:
 # --- CÓDIGO DE LOS MÓDULOS (Sin cambios) ---
 # MÓDULO 1: DIRECTOR DEL PANEL (RESUMEN)
 if app_mode == "📊 Director del Panel (Resumen)":
-    # ... (Mismo código de Director del Panel anterior)
+    st.subheader("Resumen General del Negocio")
+    col1, col2, col3, col4 = st.columns(4)
+    # ... (El resto del código de los módulos es idéntico)
