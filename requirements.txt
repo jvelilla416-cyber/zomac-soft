@@ -1,3 +1,5 @@
 streamlit
 pandas
 matplotlib
+# Esta es la herramienta de impresión profesional (PDF) que me pediste
+fpdf
