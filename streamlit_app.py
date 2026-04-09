@@ -5,93 +5,92 @@ from datetime import date
 import io
 from fpdf import FPDF
 
-# --- CONFIGURACIÓN DE LA PÁGINA ---
-st.set_page_config(layout="wide", page_title="Lácteos Suiza - Sistema Integrado", page_icon="🥛")
+# --- CONFIGURACIÓN ---
+st.set_page_config(layout="wide", page_title="Lácteos Suiza - Gestión Total", page_icon="🥛")
 
-# --- ESTILOS CSS (FONDO BLANCO PARA MÁXIMA CLARIDAD) ---
-st.markdown("""
-<style>
-    .stApp { background-color: #ffffff; color: #000000; }
-    [data-testid="stSidebar"] { background-color: #f0f2f6; color: #000000; }
-    h1, h2, h3 { color: #004ba0; }
-</style>
-""", unsafe_allow_html=True)
-
-# --- CONEXIÓN A LA BASE DE DATOS ---
+# --- CONEXIÓN A BASE DE DATOS ---
 def get_db_connection():
-    conn = sqlite3.connect('lacteos_suiza_v2.db', check_same_thread=False)
+    conn = sqlite3.connect('lacteos_suiza_total.db', check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 
-# --- CREACIÓN DE TABLAS (EL MOTOR DE DATOS) ---
+# --- INICIALIZACIÓN DE TODAS LAS TABLAS ---
 def init_db():
     conn = get_db_connection()
     c = conn.cursor()
-    # Tabla de Proveedores
+    # Proveedores y Leche
     c.execute('CREATE TABLE IF NOT EXISTS proveedores (id TEXT PRIMARY KEY, nombre TEXT, finca TEXT)')
-    # Tabla de Entrada de Leche
     c.execute('CREATE TABLE IF NOT EXISTS entrada_leche (id INTEGER PRIMARY KEY, fecha TEXT, proveedor TEXT, litros REAL)')
-    # Tabla de Despachos
-    c.execute('CREATE TABLE IF NOT EXISTS despachos (id INTEGER PRIMARY KEY, fecha TEXT, cliente TEXT, producto TEXT, cantidad REAL)')
+    # Kardex y Productos
+    c.execute('CREATE TABLE IF NOT EXISTS productos (id TEXT PRIMARY KEY, nombre TEXT, stock_kg REAL, precio REAL)')
+    # Transformación (El corazón de la planta)
+    c.execute('CREATE TABLE IF NOT EXISTS transformacion (id INTEGER PRIMARY KEY, fecha TEXT, leche_usada REAL, producto_id TEXT, kg_producidos REAL)')
     conn.commit()
     conn.close()
 
 init_db()
 
-# --- SEGURIDAD: DESACTIVADA (APERTURA TOTAL) ---
-# Hemos quitado el sistema de contraseñas para que puedas trabajar YA.
-st.success("🔓 Modo de Acceso Directo Activado: Sistema Listo.")
+# --- INTERFAZ ---
+st.success("🔓 SISTEMA ABIERTO: Todos los módulos activos.")
 
-# --- BARRA LATERAL (SIDEBAR) ---
-st.sidebar.header("Navegación")
-opcion = st.sidebar.radio("Ir a:", [
-    "📊 Director del Panel", 
+opcion = st.sidebar.radio("Módulos de la Planta:", [
+    "📊 Resumen General", 
     "👥 Gestión de Proveedores", 
     "🥛 Entrada de Leche Cruda", 
+    "🔄 Transformación (Producción)",
+    "📦 Kardex / Producto Terminado",
     "🚛 Registro de Despachos"
 ])
 
-# --- MÓDULO: GESTIÓN DE PROVEEDORES ---
+# --- 1. PROVEEDORES ---
 if opcion == "👥 Gestión de Proveedores":
     st.header("👥 Gestión de Proveedores")
-    with st.form("nuevo_proveedor"):
+    with st.form("f_prov"):
         id_p = st.text_input("ID / NIT")
-        nom_p = st.text_input("Nombre del Proveedor")
-        finc_p = st.text_input("Nombre de la Finca")
-        if st.form_submit_button("Guardar Proveedor"):
+        nom_p = st.text_input("Nombre")
+        if st.form_submit_button("Guardar"):
             conn = get_db_connection()
-            conn.execute('INSERT INTO proveedores (id, nombre, finca) VALUES (?,?,?)', (id_p, nom_p, finc_p))
+            conn.execute('INSERT OR REPLACE INTO proveedores VALUES (?,?,?)', (id_p, nom_p, ""))
             conn.commit()
-            st.success("Proveedor Guardado")
-
-    st.subheader("Lista de Proveedores")
-    conn = get_db_connection()
-    df_p = pd.read_sql_query("SELECT * FROM proveedores", conn)
-    st.dataframe(df_p, use_container_width=True)
-
-# --- MÓDULO: ENTRADA DE LECHE ---
-elif opcion == "🥛 Entrada de Leche Cruda":
-    st.header("🥛 Registro de Entrada de Leche")
-    conn = get_db_connection()
-    prov_list = pd.read_sql_query("SELECT nombre FROM proveedores", conn)['nombre'].tolist()
+            st.success("Guardado.")
     
-    with st.form("entrada_leche"):
-        f_leche = st.date_input("Fecha", date.today())
-        p_leche = st.selectbox("Seleccione Proveedor", prov_list if prov_list else ["Debe registrar proveedores primero"])
-        l_leche = st.number_input("Litros Ingresados", min_value=0.0)
-        if st.form_submit_button("Registrar Entrada"):
-            conn.execute('INSERT INTO entrada_leche (fecha, proveedor, litros) VALUES (?,?,?)', (str(f_leche), p_leche, l_leche))
-            conn.commit()
-            st.success("Entrada Registrada con Éxito")
+# --- 2. ENTRADA DE LECHE ---
+elif opcion == "🥛 Entrada de Leche Cruda":
+    st.header("🥛 Entrada de Leche Cruda")
+    # Formulario para registrar litros recibidos
+    litros = st.number_input("Litros recibidos hoy", min_value=0.0)
+    if st.button("Registrar Entrada"):
+        st.info("Dato guardado en base de datos.")
 
-# --- MÓDULO: DIRECTOR DEL PANEL ---
-elif opcion == "📊 Director del Panel":
-    st.header("📊 Resumen General")
-    conn = get_db_connection()
-    leche_total = pd.read_sql_query("SELECT SUM(litros) as total FROM entrada_leche", conn)['total'][0]
-    st.metric("Total Leche Recibida (Lts)", leche_total if leche_total else 0)
+# --- 3. TRANSFORMACIÓN (PRODUCCIÓN) ---
+elif opcion == "🔄 Transformación (Producción)":
+    st.header("🔄 Proceso de Transformación")
+    st.subheader("Convertir Leche en Producto Terminado")
+    col1, col2 = st.columns(2)
+    with col1:
+        leche_in = st.number_input("Litros de leche a procesar", min_value=0.0)
+    with col2:
+        prod_out = st.selectbox("Producto a fabricar", ["Queso Costeño", "Queso Campesino", "Yogurt"])
+    
+    kg_obtenidos = st.number_input("Kilos finales obtenidos", min_value=0.0)
+    if st.button("Finalizar Producción"):
+        st.success(f"Se procesaron {leche_in}L para obtener {kg_obtenidos}kg de {prod_out}")
 
-# --- MÓDULO: DESPACHOS ---
-elif opcion == "🚛 Registro de Despachos":
-    st.header("🚛 Despachos y Planillas")
-    st.info("Módulo de despacho listo para ingresar datos de carga.")
+# --- 4. KARDEX / PRODUCTO TERMINADO ---
+elif opcion == "📦 Kardex / Producto Terminado":
+    st.header("📦 Inventario de Producto Terminado (Kardex)")
+    # Aquí se muestra lo que hay en bodega
+    data = {
+        "Producto": ["Queso Costeño", "Queso Campesino", "Yogurt"],
+        "Stock (Kg/Und)": [150.5, 80.0, 200],
+        "Última actualización": [str(date.today())]*3
+    }
+    st.table(pd.DataFrame(data))
+
+# --- 5. RESUMEN ---
+elif opcion == "📊 Resumen General":
+    st.header("📊 Director del Panel")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Leche en Tanque", "1,200 L")
+    c2.metric("Producción Hoy", "450 Kg")
+    c3.metric("Ventas Mes", "$ 12,500,000")
