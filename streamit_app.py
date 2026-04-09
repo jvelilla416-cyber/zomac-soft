@@ -1,32 +1,32 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
-from datetime import date, timedelta
+from datetime import date
 
 # --- CONFIGURACIÓN ---
-st.set_page_config(layout="wide", page_title="Lácteos Suiza - Sistema Integral")
+st.set_page_config(layout="wide", page_title="Lácteos Suiza - PLANTA")
 
 def get_db_connection():
-    # Usamos V9 para que el Kardex y la Producción se sincronicen de verdad
-    conn = sqlite3.connect('suiza_v9_maestro.db', check_same_thread=False)
+    # Nombre nuevo para que no arrastre errores de las versiones que fallaron
+    conn = sqlite3.connect('suiza_v10_funcional.db', check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 
 def init_db():
     conn = get_db_connection()
     c = conn.cursor()
-    # 1. Proveedores
+    # 1. Proveedores con todo: Finca, Ruta, Fedegan, Retención
     c.execute('''CREATE TABLE IF NOT EXISTS proveedores 
                  (codigo TEXT PRIMARY KEY, nombre TEXT, finca TEXT, ruta TEXT, 
                   precio_base REAL, ciclo TEXT, forma_pago TEXT, fedegan INTEGER, retencion INTEGER)''')
     # 2. Recibo de Leche
-    c.execute('CREATE TABLE IF NOT EXISTS recibo_leche (id INTEGER PRIMARY KEY, fecha TEXT, cod_prov TEXT, litros REAL, tanque TEXT, precio_aplicado REAL)')
-    # 3. Producción (Historial de lo elaborado)
-    c.execute('CREATE TABLE IF NOT EXISTS produccion_final (id INTEGER PRIMARY KEY, fecha TEXT, litros_usados REAL, producto TEXT, presentacion TEXT, cantidad REAL)')
-    # 4. Kardex (Stock actual)
-    c.execute('CREATE TABLE IF NOT EXISTS kardex (producto TEXT, presentacion TEXT, stock REAL, PRIMARY KEY (producto, presentacion))')
-    # 5. Tanques
+    c.execute('CREATE TABLE IF NOT EXISTS recibo_leche (id INTEGER PRIMARY KEY, fecha TEXT, cod_prov TEXT, litros REAL, tanque TEXT, precio REAL)')
+    # 3. Tanques
     c.execute('CREATE TABLE IF NOT EXISTS tanques (nombre TEXT PRIMARY KEY, saldo REAL)')
+    # 4. Kardex y Producción
+    c.execute('CREATE TABLE IF NOT EXISTS kardex (producto TEXT, presentacion TEXT, stock REAL, PRIMARY KEY (producto, presentacion))')
+    c.execute('CREATE TABLE IF NOT EXISTS produccion_log (id INTEGER PRIMARY KEY, fecha TEXT, litros REAL, producto TEXT, cantidad REAL)')
+    
     for t in ["Tanque 1", "Tanque 2", "Tanque 3"]:
         c.execute('INSERT OR IGNORE INTO tanques VALUES (?, 0)', (t,))
     conn.commit()
@@ -34,70 +34,82 @@ def init_db():
 
 init_db()
 
-# --- SIDEBAR ---
+# --- INTERFAZ ---
 st.sidebar.image("logo_suiza.png", width=150)
-menu = st.sidebar.selectbox("Menú Principal:", ["📊 Tanques", "👥 Proveedores", "🥛 Recibo", "🏭 Producción", "📦 Kardex (Producto Final)", "💰 Liquidación"])
+menu = st.sidebar.selectbox("Módulo:", ["👥 Proveedores y Rutas", "🥛 Recibo Leche", "🏭 Producción", "📦 Kardex", "💰 Liquidación"])
 
-# --- 1. TANQUES ---
-if menu == "📊 Tanques":
-    st.header("📊 Estado de Tanques (Capacidad 2000L)")
-    conn = get_db_connection()
-    df_t = pd.read_sql_query("SELECT * FROM tanques", conn)
-    cols = st.columns(3)
-    for i, row in df_t.iterrows():
-        cols[i].metric(row['nombre'], f"{row['saldo']} L")
-        cols[i].progress(min(row['saldo']/2000, 1.0))
-
-# --- 2. PRODUCCIÓN (TRANSFORMACIÓN) ---
-elif menu == "🏭 Producción":
-    st.header("🏭 Área de Transformación y Elaboración")
-    conn = get_db_connection()
-    tanques_leche = pd.read_sql_query("SELECT * FROM tanques WHERE saldo > 0", conn)
+# --- 1. PROVEEDORES ---
+if menu == "👥 Proveedores y Rutas":
+    st.header("👥 Gestión de Proveedores")
+    with st.form("f_p", clear_on_submit=True):
+        c1, c2, c3 = st.columns(3)
+        cod = c1.text_input("Código")
+        nom = c2.text_input("Nombre Dueño")
+        finca = c3.text_input("Nombre Finca")
+        ruta = c1.text_input("Ruta (Ej: Molonga)")
+        pre = c2.number_input("Precio Base", value=1850.0)
+        ciclo = c3.selectbox("Ciclo", ["Semanal", "Quincenal"])
+        pago = st.selectbox("Forma de Pago", ["Efectivo", "Transferencia"])
+        fede = st.checkbox("Descontar Fedegán")
+        rete = st.checkbox("Aplica Retención (Tope 3.6M)")
+        if st.form_submit_button("✅ Guardar"):
+            conn = get_db_connection()
+            conn.execute('INSERT OR REPLACE INTO proveedores VALUES (?,?,?,?,?,?,?,?,?)', 
+                         (cod, nom, finca, ruta, pre, ciclo, pago, 1 if fede else 0, 1 if rete else 0))
+            conn.commit()
+            st.success("Guardado.")
     
-    with st.form("f_prod", clear_on_submit=True):
-        c1, c2 = st.columns(2)
-        t_uso = c1.selectbox("Tanque de Origen", tanques_leche['nombre'] if not tanques_leche.empty else ["No hay leche"])
-        lts_vaca = c2.number_input("Litros a utilizar", min_value=0.0)
-        
-        st.write("---")
-        variedad = c1.selectbox("Producto Elaborado", ["Queso Costeño", "Queso Pera", "Yogurt", "Cuajada", "Arequipe", "Quesillo"])
-        pres = c2.selectbox("Presentación", ["125g", "250g", "500g", "1000g", "2500g", "5000g"])
-        cant = st.number_input("Cantidad obtenida (Kg/Und)", min_value=0.0)
-        
-        if st.form_submit_button("⚙️ Finalizar Producción"):
-            if t_uso != "No hay leche" and lts_vaca > 0:
-                conn = get_db_connection()
-                # 1. Restar leche del tanque
-                conn.execute('UPDATE tanques SET saldo = saldo - ? WHERE nombre = ?', (lts_vaca, t_uso))
-                # 2. Guardar en Historial de Producción
-                conn.execute('INSERT INTO produccion_final (fecha, litros_usados, producto, presentacion, cantidad) VALUES (?,?,?,?,?)',
-                             (str(date.today()), lts_vaca, variedad, pres, cant))
-                # 3. Sumar al Kardex
-                c = conn.cursor()
-                c.execute('SELECT stock FROM kardex WHERE producto=? AND presentacion=?', (variedad, pres))
-                res = c.fetchone()
-                if res:
-                    conn.execute('UPDATE kardex SET stock = stock + ? WHERE producto=? AND presentacion=?', (cant, variedad, pres))
-                else:
-                    conn.execute('INSERT INTO kardex VALUES (?,?,?)', (variedad, pres, cant))
-                conn.commit()
-                st.success(f"Producción Exitosa: {cant} de {variedad} ({pres}) cargados al Kardex.")
-            else:
-                st.error("No hay leche suficiente o no ingresó litraje.")
-
-    st.subheader("📋 Últimos Productos Elaborados")
-    df_his = pd.read_sql_query("SELECT * FROM produccion_final ORDER BY id DESC LIMIT 5", conn)
-    st.table(df_his)
-
-# --- 3. KARDEX (PRODUCTO FINAL) ---
-elif menu == "📦 Kardex (Producto Final)":
-    st.header("📦 Inventario Actual (Kardex)")
+    st.subheader("📋 Lista de Proveedores")
     conn = get_db_connection()
-    df_k = pd.read_sql_query("SELECT * FROM kardex", conn)
-    if not df_k.empty:
-        st.dataframe(df_k, use_container_width=True)
-        st.info("Este inventario se alimenta automáticamente desde el módulo de Producción.")
-    else:
-        st.warning("No hay productos en inventario. Debe registrar una producción primero.")
+    st.dataframe(pd.read_sql_query("SELECT codigo, nombre, finca, ruta FROM proveedores", conn), use_container_width=True)
 
-# (Los módulos de Proveedores, Recibo y Liquidación se mantienen igual que la V8)
+# --- 2. RECIBO (PRECIO CORREGIBLE) ---
+elif menu == "🥛 Recibo Leche":
+    st.header("🥛 Ingreso de Leche")
+    conn = get_db_connection()
+    provs = pd.read_sql_query("SELECT * FROM proveedores", conn)
+    with st.form("f_r", clear_on_submit=True):
+        p_sel = st.selectbox("Proveedor", provs['codigo'] + " - " + provs['finca'] if not provs.empty else [])
+        lts = st.number_input("Litros", min_value=0.0)
+        tanq = st.selectbox("Tanque", ["Tanque 1", "Tanque 2", "Tanque 3"])
+        p_hoy = st.number_input("Precio a pagar hoy", value=1850.0)
+        if st.form_submit_button("🚀 Registrar"):
+            cod_p = p_sel.split(" - ")[0]
+            conn.execute('UPDATE tanques SET saldo = saldo + ? WHERE nombre = ?', (lts, tanq))
+            conn.execute('INSERT INTO recibo_leche (fecha, cod_prov, litros, tanque, precio) VALUES (?,?,?,?,?)', (str(date.today()), cod_p, lts, tanq, p_hoy))
+            conn.commit()
+            st.success("Ingreso exitoso.")
+
+# --- 3. PRODUCCIÓN (SACA DE TANQUE Y METE A KARDEX) ---
+elif menu == "🏭 Producción":
+    st.header("🏭 Producción")
+    conn = get_db_connection()
+    tanques = pd.read_sql_query("SELECT * FROM tanques WHERE saldo > 0", conn)
+    with st.form("f_prod", clear_on_submit=True):
+        t_uso = st.selectbox("Tanque", tanques['nombre'] if not tanques.empty else ["Vacío"])
+        lts_u = st.number_input("Litros a usar", min_value=0.0)
+        prod = st.selectbox("Producto", ["Queso Costeño", "Queso Pera", "Yogurt", "Cuajada"])
+        pres = st.selectbox("Presentación", ["125g", "500g", "1000g", "2500g"])
+        cant = st.number_input("Cantidad obtenida (Kg/Und)", min_value=0.0)
+        if st.form_submit_button("⚙️ Procesar"):
+            conn.execute('UPDATE tanques SET saldo = saldo - ? WHERE nombre = ?', (lts_u, t_uso))
+            conn.execute('INSERT OR REPLACE INTO kardex (producto, presentacion, stock) VALUES (?,?,?)', (prod, pres, cant))
+            conn.execute('INSERT INTO produccion_log (fecha, litros, producto, cantidad) VALUES (?,?,?,?)', (str(date.today()), lts_u, prod, cant))
+            conn.commit()
+            st.success("Producción cargada al Kardex.")
+
+elif menu == "📦 Kardex":
+    st.header("📦 Kardex (Producto Terminado)")
+    conn = get_db_connection()
+    st.dataframe(pd.read_sql_query("SELECT * FROM kardex", conn), use_container_width=True)
+
+elif menu == "💰 Liquidación":
+    st.header("💰 Liquidación")
+    conn = get_db_connection()
+    # Muestra un resumen rápido de lo que se debe pagar por proveedor
+    query = '''SELECT p.codigo, p.nombre, p.finca, SUM(r.litros) as total_lts, AVG(r.precio) as precio_prom, 
+               SUM(r.litros * r.precio) as total_valor, p.forma_pago
+               FROM recibo_leche r JOIN proveedores p ON r.cod_prov = p.codigo
+               GROUP BY p.codigo'''
+    df = pd.read_sql_query(query, conn)
+    st.dataframe(df, use_container_width=True)
