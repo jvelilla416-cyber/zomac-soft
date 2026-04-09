@@ -271,23 +271,11 @@ else: # admin
 # --- BARRA LATERAL (SIDEBAR) - NAVEGACIÓN (image_5.png, CONTRASTE MÁXIMO) ---
 with st.sidebar:
     st.header("Navegación")
-    # Tarea 1 socio: Verifica si el menú que ves aquí es el correcto para tu negocio.
     app_mode = st.radio("Ir a:", menu_options)
-    
     st.markdown("---")
-    # Botón de Excel desactivado temporalmente para asegurar que arranque
-    # st.download_button(label="📥 Descargar Respaldo (Excel)", data=download_backup(), file_name=f'respaldo_lacteos_suiza_{date.today()}.xlsx', mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     st.info("💡 Botón de Respaldo Excel desactivado temporalmente.")
 
-# --- CÓDIGO DE LOS MÓDULOS (TU AYUDA ES BIENVENIDA AQUÍ) ---
-
-# Tarea 2 socio: Cuando te pedí ayuda, me refería a esta parte.
-# He definido los módulos básicos (Director, Proveedores, Leche, Kardex, Transformación, Despachos, Ventas).
-# Para que de verdad "puedas ingresar datos", socio, tú debes decirme CÓMO quieres que sean los formularios.
-# ¿Qué campos son obligatorios para ti en "Entrada de Leche"? ¿Qué merma fija quieres en "Slicing"?
-# Ayúdame a personalizar estas 'Matrices' para que sean PODEROSAS para ti.
-
-# MÓDULO 1: DIRECTOR DEL PANEL (RESUMEN)
+# --- MÓDULO 1: DIRECTOR DEL PANEL (RESUMEN)
 if app_mode == "📊 Director del Panel (Resumen)":
     # (Código anterior idéntico, sin cambios)
     st.markdown("### 📊 Director del Panel (Resumen)")
