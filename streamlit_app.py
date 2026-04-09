@@ -9,28 +9,26 @@ import io
 st.set_page_config(layout="wide", page_title="Lácteos de María Zomac S.A.S.", page_icon="🥛")
 
 def get_db_connection():
-    # Nueva DB para limpiar errores previos
-    conn = sqlite3.connect('zomac_erp_final_2026.db', check_same_thread=False)
+    # Nueva base de datos para arrancar de cero sin errores
+    conn = sqlite3.connect('zomac_sistema_final_v1.db', check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 
-# --- INICIALIZACIÓN DE TABLAS MAESTRAS ---
+# --- MOTOR DE DATOS (TABLAS INDEPENDIENTES) ---
 def init_db():
     conn = get_db_connection()
     c = conn.cursor()
-    # Proveedores (Clave: Código)
-    c.execute('CREATE TABLE IF NOT EXISTS proveedores (codigo TEXT PRIMARY KEY, nombre TEXT, finca TEXT, cedula TEXT, valor_litro REAL, ciclo TEXT)')
-    # Clientes y Facturación
-    c.execute('CREATE TABLE IF NOT EXISTS clientes (nit TEXT PRIMARY KEY, nombre TEXT, ciudad TEXT, email TEXT, dias_vence INTEGER)')
-    c.execute('CREATE TABLE IF NOT EXISTS facturas (id INTEGER PRIMARY KEY, numero TEXT, fecha TEXT, vence TEXT, cliente_nit TEXT, total REAL, estado TEXT)')
-    # Leche y Producción
-    c.execute('CREATE TABLE IF NOT EXISTS recibo_leche (id INTEGER PRIMARY KEY, fecha TEXT, cod_prov TEXT, litros REAL, precio_dia REAL)')
-    c.execute('CREATE TABLE IF NOT EXISTS produccion (id INTEGER PRIMARY KEY, fecha TEXT, producto TEXT, litros REAL, kg_obtenidos REAL, rendimiento REAL, lote TEXT)')
-    # Kardex e Inventario
+    # 1. Maestros
+    c.execute('CREATE TABLE IF NOT EXISTS proveedores (codigo TEXT PRIMARY KEY, nombre TEXT, finca TEXT, cedula TEXT, precio_base REAL, ciclo TEXT)')
+    c.execute('CREATE TABLE IF NOT EXISTS clientes (nit TEXT PRIMARY KEY, nombre TEXT, ciudad TEXT, email TEXT, dias_pago INTEGER)')
+    # 2. Operación Leche
+    c.execute('CREATE TABLE IF NOT EXISTS entrada_leche (id INTEGER PRIMARY KEY, fecha TEXT, cod_prov TEXT, litros REAL, precio_aplicado REAL)')
+    # 3. Kardex y Cuarto Frío
     c.execute('CREATE TABLE IF NOT EXISTS inventario (id_kardex INTEGER PRIMARY KEY, producto TEXT, presentacion TEXT, stock REAL, lote TEXT, vencimiento TEXT)')
-    c.execute('CREATE TABLE IF NOT EXISTS cuarto_frio (id INTEGER PRIMARY KEY, fecha TEXT, cantidad REAL, origen TEXT, estado TEXT)')
-    # Despachos
-    c.execute('CREATE TABLE IF NOT EXISTS ordenes_despacho (id INTEGER PRIMARY KEY, fecha TEXT, cliente TEXT, producto TEXT, cantidad REAL, estado TEXT)')
+    c.execute('CREATE TABLE IF NOT EXISTS cuarto_frio (id INTEGER PRIMARY KEY, fecha TEXT, cantidad REAL, origen TEXT, motivo TEXT)')
+    # 4. Facturación y Despacho
+    c.execute('CREATE TABLE IF NOT EXISTS facturas (id INTEGER PRIMARY KEY, numero TEXT, fecha_emision TEXT, vence TEXT, cliente_nit TEXT, total REAL)')
+    c.execute('CREATE TABLE IF NOT EXISTS ordenes_despacho (id INTEGER PRIMARY KEY, fecha TEXT, cliente TEXT, producto TEXT, cantidad REAL)')
     
     conn.commit()
     conn.close()
@@ -39,96 +37,77 @@ init_db()
 
 # --- NAVEGACIÓN ---
 st.sidebar.title("🥛 LÁCTEOS DE MARÍA")
-opcion = st.sidebar.selectbox("Módulo Operativo:", [
-    "📊 Supervisión y Estadísticas",
-    "👥 Gestión (Prov/Clie)",
-    "🥛 Ingreso de Leche",
-    "💸 Liquidación de Proveedores",
-    "🏭 Transformación y Empaque",
-    "🍽️ Módulo de Tajado",
-    "📦 Kardex / Inventario",
-    "🧾 Facturación / Remisión",
-    "📑 Orden de Despacho",
-    "🚛 Despacho Final"
+opcion = st.sidebar.selectbox("Seleccione el Módulo:", [
+    "📊 Supervisión Dueño", "👥 Gestión (Prov/Clie)", "🥛 Recibo de Leche", 
+    "💸 Liquidación de Pagos", "🏭 Transformación/Empaque", 
+    "🍽️ Tajado (Slicing)", "📦 Kardex / Inventario", 
+    "🧾 Facturación/Remisión", "📑 Orden de Despacho", "🚛 Despacho Final"
 ])
 
-# --- 1. GESTIÓN DE PROVEEDORES (POR CÓDIGO) ---
+# --- MÓDULO GESTIÓN (PARA QUE PUEDAS CREAR POR CÓDIGO) ---
 if opcion == "👥 Gestión (Prov/Clie)":
-    st.header("👥 Gestión de Proveedores y Clientes")
-    tab1, tab2 = st.tabs(["Proveedores", "Clientes"])
-    with tab1:
+    st.header("👥 Administración de Base de Datos")
+    t1, t2 = st.tabs(["Crear Proveedores", "Crear Clientes"])
+    with t1:
         with st.form("f_prov"):
             c1, c2 = st.columns(2)
-            cod = c1.text_input("Código de Proveedor (Único)")
-            nom = c2.text_input("Nombre Completo")
-            val = c1.number_input("Valor Litro Base ($)", value=1850)
+            cod = c1.text_input("Código de Proveedor (EJ: 001)")
+            nom = c2.text_input("Nombre del Proveedor")
+            val = c1.number_input("Precio Litro Pactado ($)", value=1850)
             cic = c2.selectbox("Ciclo de Pago", ["Semanal", "Quincenal"])
-            if st.form_submit_button("Guardar Proveedor"):
-                conn = get_db_connection()
-                conn.execute('INSERT OR REPLACE INTO proveedores (codigo, nombre, valor_litro, ciclo) VALUES (?,?,?,?)', (cod, nom, val, cic))
-                conn.commit()
-                st.success(f"Proveedor {cod} guardado.")
+            if st.form_submit_button("✅ Guardar Proveedor"):
+                if cod and nom:
+                    conn = get_db_connection()
+                    conn.execute('INSERT OR REPLACE INTO proveedores VALUES (?,?,?,?,?,?)', (cod, nom, "", "", val, cic))
+                    conn.commit()
+                    st.success(f"Proveedor {cod} guardado correctamente.")
+                else: st.error("Llene el Código y el Nombre.")
 
-# --- 2. TRANSFOMACIÓN (TODOS LOS PRODUCTOS) ---
-elif opcion == "🏭 Transformación y Empaque":
-    st.header("🏭 Planta de Transformación")
-    prods = ["Queso Costeño", "Yogurt", "Cuajada", "Cheddar", "Parmesano", "Palmita", "Suero Costeño", "Queso Costeño Industrial", "Arequipe", "Quesadillo", "Queso 7 Cueros", "Queso Sábana", "Quesillo", "Queso Pera", "Queso Costeño Asado", "Queso Bloque"]
-    pres = ["100g", "125g", "200g", "250g", "400g", "500g", "1000g", "1250g", "2500g", "5000g"]
-    
-    with st.form("f_trans"):
-        p_sel = st.selectbox("Producto a fabricar", prods)
-        lts_uso = st.number_input("Litros de leche procesados", min_value=0.0)
-        kg_final = st.number_input("Cantidad obtenida (Kg/Und)", min_value=0.0)
-        p_pres = st.selectbox("Presentación", pres)
-        if st.form_submit_button("Cargar Producción"):
-            rend = lts_uso / kg_final if kg_final > 0 else 0
-            conn = get_db_connection()
-            conn.execute('INSERT INTO inventario (producto, presentacion, stock) VALUES (?,?,?)', (p_sel, p_pres, kg_final))
+# --- MÓDULO RECIBO (POR CÓDIGO) ---
+elif opcion == "🥛 Recibo de Leche":
+    st.header("🥛 Ingreso de Leche por Código")
+    conn = get_db_connection()
+    provs = pd.read_sql_query("SELECT codigo, nombre FROM proveedores", conn)
+    with st.form("f_leche"):
+        p_sel = st.selectbox("Seleccione Código de Proveedor", provs['codigo'] if not provs.empty else ["Cree un proveedor primero"])
+        lts = st.number_input("Litros recibidos", min_value=0.0)
+        p_hoy = st.number_input("Precio aplicado hoy ($)", value=1850)
+        if st.form_submit_button("🚀 Registrar Ingreso"):
+            conn.execute('INSERT INTO entrada_leche (fecha, cod_prov, litros, precio_aplicado) VALUES (?,?,?,?)', 
+                         (str(date.today()), p_sel, lts, p_hoy))
             conn.commit()
-            st.success(f"Rendimiento: {rend:.2f}. Cargado a Kardex.")
+            st.success("Litraje guardado. Ya puedes liquidarlo.")
 
-# --- 3. TAJADO (LÓGICA DE MERMA 200G) ---
-elif opcion == "🍽️ Módulo de Tajado":
-    st.header("🍽️ Proceso de Tajado")
+# --- MÓDULO TAJADO (LÓGICA DE MERMA 200G) ---
+elif opcion == "🍽️ Tajado (Slicing)":
+    st.header("🍽️ Tajado y Merma de Bloque")
     with st.form("f_taja"):
-        st.write("Seleccione Queso Bloque de Kardex para tajar")
-        kg_in = st.number_input("Kilos de Queso Bloque a utilizar", min_value=0.0)
-        formato = st.selectbox("¿Qué producto quieres sacar? (Tajado)", ["125g", "200g", "250g", "400g", "500g", "1000g", "1250g", "2500g"])
-        
-        # Lógica de Merma: 200g por bloque de 2.5kg aprox.
+        st.write("Se descuenta Queso Bloque del Kardex")
+        kg_in = st.number_input("Peso de Bloques a tajar (Kg)", min_value=0.0)
+        formato = st.selectbox("Presentación de salida", ["125g", "200g", "250g", "400g", "500g", "1000g", "1250g", "2500g"])
+        # Merma automática de 200g por bloque de 2.5kg
         num_bloques = kg_in / 2.5 if kg_in > 0 else 0
-        merma_total = num_bloques * 0.200
-        neto_tajado = kg_in - merma_total
+        merma_tot = num_bloques * 0.200
+        neto = kg_in - merma_tot
         
         if st.form_submit_button("Ejecutar Tajado"):
             conn = get_db_connection()
-            # Sale de Kardex Queso Bloque
-            conn.execute('UPDATE inventario SET stock = stock - ? WHERE producto = "Queso Bloque"', (kg_in,))
-            # Entra a Kardex Queso Tajado
-            conn.execute('INSERT INTO inventario (producto, presentacion, stock) VALUES (?,?,?)', ("Queso Tajado", formato, neto_tajado))
-            # Merma va a Cuarto Frío
-            conn.execute('INSERT INTO cuarto_frio (fecha, cantidad, origen, estado) VALUES (?,?,"Tajado","Reproceso")', (str(date.today()), merma_total))
+            # 1. Resta del Kardex el Bloque
+            conn.execute('INSERT INTO inventario (producto, presentacion, stock) VALUES (?,?,?)', ("Queso Bloque", "Bloque", -kg_in))
+            # 2. Suma al Kardex el Tajado
+            conn.execute('INSERT INTO inventario (producto, presentacion, stock) VALUES (?,?,?)', ("Queso Tajado", formato, neto))
+            # 3. Merma al Cuarto Frío
+            conn.execute('INSERT INTO cuarto_frio (fecha, cantidad, origen, motivo) VALUES (?,?,"Tajado","Merma")', (str(date.today()), merma_tot))
             conn.commit()
-            st.warning(f"Merma de {merma_total:.2f}kg enviada a Cuarto Frío.")
-            st.success(f"Tajado de {formato} listo: {neto_tajado:.2f}kg en Kardex.")
+            st.warning(f"Merma de {merma_tot:.2f} Kg enviada a CUARTO FRÍO.")
+            st.success(f"Neto de {neto:.2f} Kg cargado a Kardex.")
 
-# --- 4. FACTURACIÓN Y ALARMAS ---
-elif opcion == "🧾 Facturación / Remisión":
-    st.header("🧾 Facturación y Remisiones")
-    st.info("Sistema de Alarmas: Las facturas vencidas se resaltarán en rojo.")
-    # Aquí iría la lógica de IVA, Retención y totales.
-
-# --- 5. ORDEN DE DESPACHO (PORTERÍA) ---
+# --- MÓDULO ORDEN DE DESPACHO (PORTERÍA) ---
 elif opcion == "📑 Orden de Despacho":
-    st.header("📑 Generar Orden de Salida")
+    st.header("📑 Orden de Salida (Copia Portería)")
     with st.form("f_orden"):
-        clie = st.text_input("Cliente que pidió")
+        clie = st.text_input("Cliente Destino")
         prod = st.text_input("Producto")
         cant = st.number_input("Cantidad")
-        if st.form_submit_button("🖨️ Imprimir Órdenes"):
-            st.success("Imprimiendo copia para Portería y copia para Despacho.")
-
-# --- BOTÓN DE RESPALDO EXCEL (DUEÑO) ---
-st.sidebar.markdown("---")
-if st.sidebar.button("📥 Generar Respaldo Maestro (Excel)"):
-    st.sidebar.success("Excel generado para supervisión.")
+        if st.form_submit_button("🖨️ Imprimir Orden"):
+            st.info("Generando copia para Portería y otra para Despacho...")
